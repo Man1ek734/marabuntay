@@ -68,12 +68,17 @@ async function ensureTicketPanel(guild) {
     {id:guild.roles.everyone.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.ReadMessageHistory],deny:[PermissionFlagsBits.SendMessages]},
     {id:bot,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.ManageChannels]}
   ]);
-  const recent=await panel.messages.fetch({limit:30});
-  const exists=recent.some(m=>m.author.id===client.user.id && m.components?.some(row=>row.components?.some(b=>b.customId==='marabunta_ticket_open')));
-  if(!exists) await panel.send({
-    embeds:[new EmbedBuilder().setTitle('Centrum pomocy Marabunty').setDescription('Potrzebujesz pomocy, chcesz zlozyc podanie albo zglosic problem? Kliknij ponizej, aby otworzyc prywatny ticket.').setColor(0x2875e3)],
-    components:[new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('marabunta_ticket_open').setLabel('Otworz ticket').setStyle(ButtonStyle.Primary))]
-  });
+  const embed=new EmbedBuilder()
+    .setColor(0x2356A8)
+    .setTitle('MARABUNTA | CENTRUM ZGLOSZEN')
+    .setDescription('**Potrzebujesz kontaktu z zarzadem organizacji?**\n\nOtworz prywatny ticket, a odpowiednia osoba z kadry zajmie sie Twoja sprawa.\n\n**Mozesz zglosic:**\n> Podanie lub rekrutacje\n> Problem z czlonkiem organizacji\n> Pytanie do zarzadu\n> Inna sprawe organizacyjna\n\n**Wazne:** Jeden aktywny ticket na osobe. Opisz sprawe konkretnie i poczekaj na odpowiedz.')
+    .setFooter({text:'MARABUNTA  •  DreamLife RolePlay  •  System zgloszen'})
+    .setTimestamp();
+  const row=new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('marabunta_ticket_open').setLabel('Utworz zgloszenie').setEmoji('📩').setStyle(ButtonStyle.Primary));
+  const recent=await panel.messages.fetch({limit:50});
+  const previous=recent.find(m=>m.author.id===client.user.id && m.components?.some(r=>r.components?.some(b=>b.customId==='marabunta_ticket_open')));
+  if(previous) await previous.edit({embeds:[embed],components:[row]});
+  else await panel.send({embeds:[embed],components:[row]});
 }
 client.on('interactionCreate',async interaction=>{
   if(!interaction.isButton() || !['marabunta_ticket_open','marabunta_ticket_close'].includes(interaction.customId)) return;
@@ -98,8 +103,13 @@ client.on('interactionCreate',async interaction=>{
           ...staff.map(id=>({id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}))
         ],reason:'Ticket Marabunty'
       });
-      await ch.send({content:'Witaj <@'+interaction.user.id+'>! Opisz swoja sprawe. Obsluga wkrotce odpowie.',
-        components:[new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('marabunta_ticket_close').setLabel('Zamknij ticket').setStyle(ButtonStyle.Danger))]});
+      await ch.send({
+        content:'<@'+interaction.user.id+'>',
+        embeds:[new EmbedBuilder().setColor(0x2356A8).setTitle('MARABUNTA | NOWE ZGLOSZENIE')
+          .setDescription('Witaj! Ten kanal jest prywatny i widoczny tylko dla Ciebie oraz uprawnionej kadry.\\n\\n**Jak zglosic sprawe?**\\n1. Opisz, czego dotyczy ticket.\\n2. Podaj istotne szczegoly i ewentualne dowody.\\n3. Poczekaj na odpowiedz kadry.\\n\\nPo zakonczeniu sprawy uzyj przycisku ponizej.')
+          .addFields({name:'Zglaszajacy',value:'<@'+interaction.user.id+'>',inline:true},{name:'Status',value:'Oczekuje na obsluge',inline:true})
+          .setFooter({text:'MARABUNTA • DreamLife RolePlay'})],
+        components:[new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('marabunta_ticket_close').setLabel('Zamknij zgloszenie').setEmoji('🔒').setStyle(ButtonStyle.Danger))]});
       await interaction.editReply('Ticket utworzony: '+ch.toString());
     } else {
       const ch=interaction.channel;
